@@ -8,104 +8,239 @@ export default {
         CPF: '',
         DateOfBirth: '',
         Address: '',
-        Contact: {
-          Telephone: '',
-          Email: ''
-        }
+        contatos: [
+          {
+            Telephone: '',
+            Email: ''
+          }
+        ]
       },
       updateForm: {
-        CPF: '',
         FullName: '',
+        CPF: '',
         DateOfBirth: '',
         Address: '',
-        Contact: {
-          Telephone: '',
-          Email: ''
-        }
+        contatos: [
+          {
+            Telefone: '',
+            Email: ''
+          }
+        ]
       },
-      searchCpf: '',
+      searchCpf: '' ,
       deleteCpf: '',
+      formType: 'search',
       searchedPhysicalPerson: null,
-      formType: ''
+      searchedPhysicalPersonModal: null,
     };
   },
   methods: {
     openForm(type) {
       this.formType = type;
     },
-    closeForm() {
-      this.formType = '';
-      this.resetForms();
+    formatarCPF(cpf) {
+      return cpf.replace(/[^\d]/g, '');
     },
-    resetForms() {
-      this.physicalPerson = {
-        FullName: '',
-        CPF: '',
-        DateOfBirth: '',
-        Address: '',
-        Contact: {
-          Telephone: '',
-          Email: ''
+    validateCPF(cpf) {
+      cpf = cpf.replace(/\D/g, '');
+      return cpf.length === 11;
+    },
+    formatarCampo(objeto, campo, mascara) {
+      if (objeto[campo] === null || objeto[campo] === undefined) {
+        objeto[campo] = '';
+      }
+    
+      let valorFormatado = objeto[campo].replace(/[^\d]/g, '');
+    
+      if (campo === 'telefone') {
+        let telefoneFormatado = '';
+        let j = 0;
+    
+        for (let i = 0; i < mascara.length; i++) {
+          if (mascara[i] === '#') {
+            if (j < valorFormatado.length) {
+              telefoneFormatado += valorFormatado[j];
+              j++;
+            } else {
+              break; 
+            }
+          } else {
+            telefoneFormatado += mascara[i];
+          }
         }
-      };
-      this.updateForm = {
-        CPF: '',
-        FullName: '',
-        DateOfBirth: '',
-        Address: '',
-        Contact: {
-          Telephone: '',
-          Email: ''
+    
+        objeto[campo] = telefoneFormatado;
+      }
+    
+      if (campo === 'CPF') {
+        let cpfFormatado = '';
+    
+        for (let i = 0; i < mascara.length; i++) {
+          if (mascara[i] === '#') {
+            if (valorFormatado.length > 0) {
+              cpfFormatado += valorFormatado[0];
+              valorFormatado = valorFormatado.slice(1);
+            } else {
+              break;
+            }
+          } else {
+            cpfFormatado += mascara[i];
+          }
         }
-      };
-      this.searchCpf = '';
-      this.deleteCpf = '';
-      this.searchedPhysicalPerson = null;
+    
+        objeto[campo] = cpfFormatado;
+      }
+    },
+    async submitForm(type) {
+      switch (type) {
+        case 'create':
+          await this.createPhysicalPerson();
+          break;
+        case 'update':
+          await this.updatePhysicalPerson();
+          break;
+        case 'search':
+          await this.searchPhysicalPerson();
+          break;
+        case 'delete':
+          await this.deletePhysicalPerson();
+          break;
+      }
     },
     async createPhysicalPerson() {
+      if (!this.validateCPF(this.physicalPerson.CPF)) {
+        alert('CPF inválido Smith');
+        return;
+      }
+
+      const formattedDateOfBirth = new Date(this.physicalPerson.DateOfBirth).toISOString();
+
+      const requestBody = {
+        nomeCompleto: this.physicalPerson.FullName,
+        cpf: this.formatarCPF(this.physicalPerson.CPF),
+        dataDeNascimento: formattedDateOfBirth,
+        endereco: this.physicalPerson.Address,
+        contatos: [
+          {
+            id: 0,
+            telefone: this.physicalPerson.contatos.Telephone,
+            email: this.physicalPerson.contatos.Email
+          }
+        ]
+      };
+    
       try {
-        const response = await http.post('https://localhost:7054/api/Pessoas/add-pessoa-fisica', this.physicalPerson);
+        console.log('Dados enviados:', requestBody);
+    
+        const response = await http.post('/add-pessoa-fisica', requestBody);
         console.log('Pessoa física cadastrada com sucesso:', response.data);
         alert('Pessoa física cadastrada com sucesso!');
-        this.closeForm();
       } catch (error) {
         console.error('Erro ao cadastrar pessoa física:', error);
-        alert('Erro ao cadastrar pessoa física. Verifique o console para mais detalhes.');
+        alert('Erro ao cadastrar pessoa física.');
       }
     },
     async updatePhysicalPerson() {
+      if (!this.updateForm.CPF || !this.validateCPF(this.updateForm.CPF)) {
+        alert('CPF inválido ou não fornecido');
+        return;
+      }
+      
+      let cpfFormatado = this.formatarCPF(this.updateForm.CPF)
+
+      let formattedDateOfBirth = '';
+      if (this.updateForm.DateOfBirth) {
+        formattedDateOfBirth = new Date(this.updateForm.DateOfBirth).toISOString();
+      } else {
+        formattedDateOfBirth = new Date(0).toISOString();
+      }
+
+      let email = '';
+      let telefone = '';
+      if (this.updateForm.contatos) {
+        email = this.updateForm.contatos.Email || 'teste@teste.com';
+        telefone = this.updateForm.contatos.Telephone || '00000000000';
+      }
+
+      const requestBody = {
+        nomeCompleto: this.updateForm.FullName || '',
+        cpf: cpfFormatado,
+        dataDeNascimento: formattedDateOfBirth,
+        endereco: this.updateForm.Address || 'teste',
+        contatos: [
+          {
+            email,
+            telefone
+          }
+        ]
+      };
+    
       try {
-        const response = await http.put(`https://localhost:7054/api/Pessoas/update-pessoa-fisica/${this.updateForm.CPF}`, this.updateForm);
+        console.log('Dados enviados:', requestBody);
+    
+        const response = await http.put(`/update-pessoa-fisica/${cpfFormatado}`, requestBody);
         console.log('Pessoa física atualizada com sucesso:', response.data);
         alert('Pessoa física atualizada com sucesso!');
-        this.closeForm();
       } catch (error) {
         console.error('Erro ao atualizar pessoa física:', error);
-        alert('Erro ao atualizar pessoa física. Verifique o console para mais detalhes.');
+        alert('Erro ao atualizar pessoa física.');
       }
     },
     async searchPhysicalPerson() {
       try {
-        const response = await http.get(`https://localhost:7054/api/Pessoas/get-pessoa-fisica/${this.searchCpf}`);
-        if (response.data) {
-          this.searchedPhysicalPerson = response.data;
+        let response;
+
+        if (this.searchCpf) {
+          const cpf = this.formatarCPF(this.searchCpf);
+          response = await http.get(`/get-pessoa-fisica/${cpf}`);
         } else {
-          alert('Pessoa física não encontrada.');
+          response = await http.get('/get-pessoas');
+        }
+
+        if (response.status === 200) {
+          if (response.data && response.data.length > 0) {
+            this.searchedPhysicalPersonModal = response.data;
+            this.formType = 'info';
+            this.$nextTick(() => { 
+            this.openSearchModal();
+          });
+          } else {
+            alert('Pessoa física não encontrada.');
+          }
+        } else {
+          alert('Erro ao buscar pessoa física.');
         }
       } catch (error) {
         console.error('Erro ao buscar pessoa física:', error);
-        alert('Erro ao buscar pessoa física. Verifique o console para mais detalhes.');
+        alert('Erro ao buscar pessoa física');
+      }
+    },
+    openSearchModal() {
+      const modal = document.querySelector('.modal-small');
+      if (modal) {
+        modal.style.display = 'block';
+      } else {
+        console.error('.modal-small não encontrado.');
+      }
+    },
+    closeSearchModal() {
+      const modal = document.querySelector('.modal-small');
+      if (modal) {
+        modal.style.display = 'none';
+        this.formType = 'search';
+        this.searchedPhysicalPersonModal = null;
+      } else {
+        console.error('.modal-small não encontrado.');
       }
     },
     async deletePhysicalPerson() {
       try {
-        const response = await http.delete(`https://localhost:7054/api/Pessoas/delete-pessoa-fisica/${this.deleteCpf}`);
+        const cpf = this.formatarCPF(this.deleteCpf);
+        const response = await http.delete(`/delete-pessoa-fisica/${cpf}`);
         console.log('Pessoa física excluída com sucesso:', response.data);
         alert('Pessoa física excluída com sucesso!');
-        this.closeForm();
       } catch (error) {
-        console.error('Erro ao excluir pessoa física:', error);
-        alert('Erro ao excluir pessoa física. Verifique o console para mais detalhes.');
+        alert('Erro ao excluir pessoa física.');
       }
     }
   }

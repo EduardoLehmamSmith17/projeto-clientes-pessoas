@@ -1,7 +1,8 @@
-import axios from "axios";
+import axios from 'axios';
 
-const createAxios = axios.create({
-    baseURL: "http://localhost:7054/api/Pessoas/"
+export default axios.create({
+  baseURL: 'https://localhost:7054/api/Pessoas',
+  headers: {
+    'Content-type': 'application/json'
+  }
 });
-
-export default createAxios;

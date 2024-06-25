@@ -24,8 +24,8 @@ export default {
         }
       },
       searchCnpj: '',
-      deleteCnpj: '',
-      formType: ''
+      searchedLegalPersonModal: null,
+      formType: 'search'
     };
   },
   methods: {
@@ -49,42 +49,120 @@ export default {
     },
     async createLegalPerson() {
       try {
-        const response = await http.post('/api/Pessoas/add-pessoa-juridica', this.legalPerson);
+        if (!this.validateCNPJ(this.legalPerson.CNPJ)) {
+          alert('CNPJ inválido');
+          return;
+        }
+
+        const requestBody = {
+          razaoSocial: this.legalPerson.CorporateReason,
+          cnpj: this.legalPerson.CNPJ,
+          nomeFantasia: this.legalPerson.FantasyName,
+          endereco: this.legalPerson.Address,
+          contatos: [
+            {
+              id: 0,
+              telefone: this.legalPerson.Contact.Telephone,
+              email: this.legalPerson.Contact.Email
+            }
+          ]
+        };
+    
+        console.log('Dados enviados:', requestBody);
+    
+        const response = await http.post('/add-pessoa-juridica', requestBody);
         console.log('Pessoa jurídica criada com sucesso:', response.data);
-        this.closeForm();
+        alert('Pessoa jurídica criada com sucesso!');
       } catch (error) {
         console.error('Erro ao criar pessoa jurídica:', error);
+        alert('Erro ao criar pessoa jurídica.');
         throw error;
       }
     },
     async updateLegalPerson() {
+      if (!this.updateForm.CNPJ || !this.validateCNPJ(this.updateForm.CNPJ)) {
+        alert('CNPJ inválido ou não fornecido');
+        return;
+      }
+      
+      const requestBody = {
+        razaoSocial: this.updateForm.CorporateReason || '',
+        cnpj: this.legalPerson.CNPJ,
+        nomeFantasia: this.updateForm.FantasyName || '',
+        endereco: this.updateForm.Address || 'teste',
+        contatos: [
+          {
+            id: 0,
+            email: this.updateForm.Contact.Email || 'teste@teste.com',
+            telefone: this.updateForm.Contact.Telephone || '00000000000'
+          }
+        ]
+      };
+    
       try {
-        const response = await http.put(`/api/Pessoas/update-pessoa-juridica/${this.updateForm.CNPJ}`, this.updateForm);
+        console.log('Dados enviados:', requestBody);
+    
+        const response = await http.put(`/update-pessoa-juridica/${this.legalPerson.CNPJ}`, requestBody);
         console.log('Pessoa jurídica atualizada com sucesso:', response.data);
-        this.closeForm();
+        alert('Pessoa jurídica atualizada com sucesso!');
       } catch (error) {
         console.error('Erro ao atualizar pessoa jurídica:', error);
-        throw error;
+        alert('Erro ao atualizar pessoa jurídica.');
       }
     },
     async searchLegalPerson() {
       try {
-        const response = await http.get(`/api/Pessoas/get-pessoa-juridica/${this.searchCnpj}`);
-        console.log('Pessoa jurídica encontrada:', response.data);
+        const response = await http.get(`/get-pessoa-juridica/${this.searchCnpj}`);
+        
+        if (response.status === 200) {
+          if (response.data) {
+            this.searchedLegalPersonModal = response.data;
+            this.formType = 'info';
+            this.$nextTick(() => { 
+              this.openSearchModal();
+            });
+          } else {
+            alert('Pessoa jurídica não encontrada.');
+          }
+        } else {
+          alert('Erro ao buscar pessoa jurídica.');
+        }
       } catch (error) {
         console.error('Erro ao buscar pessoa jurídica:', error);
-        throw error;
+        alert('Erro ao buscar pessoa jurídica.');
+      }
+    },
+    openSearchModal() {
+      const modal = document.querySelector('.modal-small');
+      if (modal) {
+        modal.style.display = 'block';
+      } else {
+        console.error('.modal-small não encontrado.');
+      }
+    },
+    closeSearchModal() {
+      const modal = document.querySelector('.modal-small');
+      if (modal) {
+        modal.style.display = 'none';
+        this.formType = 'search';
+        this.searchedLegalPersonModal = null; 
+      } else {
+        console.error('.modal-small não encontrado.');
       }
     },
     async deleteLegalPerson() {
       try {
-        const response = await http.delete(`/api/Pessoas/delete-pessoa-juridica/${this.deleteCnpj}`);
-        console.log('Pessoa jurídica excluída com sucesso:', response.data);
-        this.deleteCnpj = '';
-        this.closeForm();
+        const response = await http.delete(`/delete-pessoa-juridica/${this.deleteCnpj}`);
+        
+        if (response.status === 200) {
+          console.log('Pessoa jurídica excluída com sucesso:', response.data);
+          alert('Pessoa jurídica excluída com sucesso!');
+        } else {
+          alert('Erro ao excluir pessoa jurídica.');
+        }
       } catch (error) {
         console.error('Erro ao excluir pessoa jurídica:', error);
-        throw error;
+        alert('Erro ao excluir pessoa jurídica.');
       }
     },
     openForm(type) {
@@ -92,6 +170,21 @@ export default {
     },
     closeForm() {
       this.formType = '';
+    },
+    closeModal() {
+      this.showLegalPersonModal = false;
+    },
+    validateCNPJ(cnpj) {
+      const cleanedCNPJ = cnpj.replace(/\D/g, '');
+    
+      if (cleanedCNPJ.length !== 14) {
+        return false;
+      }
+    
+      return true;
+    },
+    formatarCNPJ(cpf) {
+      return cpf.replace(/[^\d]/g, '');
     }
   }
 };
